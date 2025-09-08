@@ -1,6 +1,6 @@
 # save_livestream.py
 
-Fork from https://github.com/mrwnwttk/livestream_scripts
+Main idea from [https://github.com/mrwnwttk/livestream_scripts](https://github.com/mrwnwttk/livestream_scripts/blob/main/save_livestream.py)
 
 Requires `streamlink` and `python3` to be installed and in your respective PATH environment variable.
 
