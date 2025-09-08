@@ -2,13 +2,13 @@
 
 Requires `streamlink` and `python3` to be installed and in your respective PATH environment variable.
 
-Script always waiting for all(multiplie) start live stream. Have options - `proxy settings` and `twitch-proxy-playlist = TTV-LOL-PRO v1`
-For option `TTV-LOL-PRO v1` you need to patch streamlink - https://github.com/2bc4/streamlink-ttvlol
+Script always waiting for all(multiplie) start live stream. Have options - `proxy settings` and `twitch-proxy-playlist = TTV-LOL-PRO v1`.
+For option `TTV-LOL-PRO v1` you need to patch streamlink - https://github.com/2bc4/streamlink-ttvlol 
 
 Current wait time:
 * MIN_WAIT = 2
 * MAX_WAIT = 11
-You can change it!
+  You can change it!
 
 Current streamlink options:
 * --twitch-low-latency
@@ -18,7 +18,7 @@ Current streamlink options:
 * --stream-segment-timeout=15
 * --stream-segment-attempts=10
 
-You can change, see docs - https://streamlink.github.io/cli.html 
+You can change it, see doc - https://streamlink.github.io/cli.html 
 
 Example:
 ```
