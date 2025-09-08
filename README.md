@@ -1,5 +1,7 @@
 # save_livestream.py
 
+Fork from https://github.com/mrwnwttk/livestream_scripts
+
 Requires `streamlink` and `python3` to be installed and in your respective PATH environment variable.
 
 Script always waiting for all(multiplie) start live stream. Have options - `proxy settings` and `twitch-proxy-playlist = TTV-LOL-PRO v1`.
