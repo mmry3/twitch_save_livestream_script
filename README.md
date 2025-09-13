@@ -1,16 +1,16 @@
 # save_livestream.py
 
-Main idea from [https://github.com/mrwnwttk/livestream_scripts](https://github.com/mrwnwttk/livestream_scripts/blob/main/save_livestream.py)
+Main idea from [https://github.com/mrwnwttk/livestream_scripts](https://github.com/mrwnwttk/livestream_scripts/blob/main/save_livestream.py).
 
 Requires `streamlink` and `python3` to be installed and in your respective PATH environment variable.
 
-Script always monitor for all (multiple streamers) when livestream stars
+Script always monitor for all (multiple streamers) when livestream start.
 
 Have options:
 * `proxy`
 * `twitch-proxy-playlist`
 
-For `twitch-proxy-playlist` option _(TTV-LOL-PRO v1)_ you need to patch streamlink - https://github.com/2bc4/streamlink-ttvlol 
+For `twitch-proxy-playlist` option _(TTV-LOL-PRO v1)_ you need to patch streamlink - https://github.com/2bc4/streamlink-ttvlol
 
 TTV-LOL-PRO v1 servers:
 * https://lb-eu.cdn-perfprod.com (Europe)
