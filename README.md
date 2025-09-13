@@ -36,6 +36,8 @@ Current streamlink options:
 
 You can change it, see doc - https://streamlink.github.io/cli.html 
 
+Script <ins>don't record in 2k\4k resoluion</ins> because it's only available through GraphQL. Streamlink use Twitch API.
+
 Example:
 ```
 $ python3 save_livestream_parallel.py [--proxy http://IP:PORT] [--twitch-proxy-playlist=URL] <streamer1> <streamer2> ...
