@@ -4,7 +4,7 @@ Main idea from [https://github.com/mrwnwttk/livestream_scripts](https://github.c
 
 Requires `streamlink` and `python3` to be installed and in your respective PATH environment variable.
 
-Script always waiting monitor for all(multiple streamers) then livestream stars
+Script always monitor for all (multiple streamers) when livestream stars
 
 Have options:
 * `proxy`
