@@ -7,6 +7,16 @@ Requires `streamlink` and `python3` to be installed and in your respective PATH 
 Script always waiting for all(multiplie) start live stream. Have options - `proxy settings` and `twitch-proxy-playlist = TTV-LOL-PRO v1`.
 For option `TTV-LOL-PRO v1` you need to patch streamlink - https://github.com/2bc4/streamlink-ttvlol 
 
+TTV-LOL-PRO v1 servers:
+* https://lb-eu.cdn-perfprod.com (Europe)
+* https://lb-eu2.cdn-perfprod.com (Europe 2)
+* https://lb-eu3.cdn-perfprod.com (Europe 3, using Russia-only proxies)
+* https://lb-eu4.cdn-perfprod.com (Europe 4)
+* https://lb-eu5.cdn-perfprod.com (Europe 5)
+* https://lb-na.cdn-perfprod.com (NA)
+* https://lb-as.cdn-perfprod.com (Asia)
+* https://lb-sa.cdn-perfprod.com (SA)
+
 Current wait time (in seconds):
 * MIN_WAIT = 2
 * MAX_WAIT = 11
