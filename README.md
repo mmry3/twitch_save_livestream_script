@@ -8,6 +8,7 @@ Script always waiting for all(multiplie) start live stream
 Have options:
 * `proxy`
 * `twitch-proxy-playlist`
+
 For `twitch-proxy-playlist` option _(TTV-LOL-PRO v1)_ you need to patch streamlink - https://github.com/2bc4/streamlink-ttvlol 
 
 TTV-LOL-PRO v1 servers:
