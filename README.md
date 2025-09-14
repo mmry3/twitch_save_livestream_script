@@ -7,8 +7,8 @@ Requires `streamlink` and `python3` to be installed and in your respective PATH 
 Script always monitor for all (multiple streamers) when livestream start.
 
 Have options:
-* `proxy`
-* `twitch-proxy-playlist`
+* `--proxy http://IP:PORT`
+* `--twitch-proxy-playlist=https://[TTV-LOL-PRO v1 server]`
 
 For `twitch-proxy-playlist` option _(TTV-LOL-PRO v1)_ you need to patch streamlink - https://github.com/2bc4/streamlink-ttvlol
 
