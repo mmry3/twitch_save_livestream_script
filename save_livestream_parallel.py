@@ -86,16 +86,18 @@ def get_file_duration(filepath):
 
 def download(author_name, quality="best", proxy=None, twitch_proxy_playlist=None):
     uri = f"https://www.twitch.tv/{author_name}"
-    log_filename = f"{author_name}_{strftime('%Y%m%d_%H-%M-%S', gmtime())}.log"
 
     while True:
+        part_counter = 1  # reset counter when streamer goes offline and comes back
+        current_time = timestamp()
+        log_filename = f"{author_name}_{strftime('%Y%m%d_%H-%M-%S', gmtime())}[part{part_counter:02d}].log"
+
         if not is_stream_live(author_name, quality, proxy, twitch_proxy_playlist):
             wait_time = int(uniform(MIN_WAIT, MAX_WAIT))
             print(f"{timestamp()} Stream is offline {author_name}. Waiting {wait_time} sec...")
             time.sleep(wait_time)
             continue
 
-        current_time = timestamp()
         try:
             info_cmd = [
                 "streamlink", "--json", "--twitch-low-latency", "--twitch-disable-ads", "--stream-segment-threads", "3", "--hls-live-restart", "--stream-segment-timeout", "15", "--stream-segment-attempts", "10",
@@ -114,69 +116,73 @@ def download(author_name, quality="best", proxy=None, twitch_proxy_playlist=None
             original_title = stream_info.get('metadata', {}).get('title', 'no_title')
             clean_title = sanitize_filename_windows(original_title)
 
-            filename_format = r"{time:%Y%m%d %H-%M-%S} [" + author_name + r"] " + clean_title + r" [" + quality + r"][{id}].ts"
+            while True:
+                filename_format = (
+                    r"{time:%Y%m%d %H-%M-%S} [" + author_name + r"] " + clean_title +
+                    r" [" + quality + r"][{id}][part" + f"{part_counter:02d}" + r"].ts"
+                )
+                log_filename = f"{author_name}_{strftime('%Y%m%d_%H-%M-%S', gmtime())}[part{part_counter:02d}].log"
 
-            cmd = [
-                "streamlink", "--twitch-low-latency", "--twitch-disable-ads", "--stream-segment-threads", "3", "--hls-live-restart", "--stream-segment-timeout", "15", "--stream-segment-attempts", "10", "-o", filename_format,
-                uri, quality
-            ]
-            if proxy:
-                cmd.insert(1, f"--http-proxy={proxy}")
-            if twitch_proxy_playlist:
-                cmd.insert(1, f"--twitch-proxy-playlist={twitch_proxy_playlist}")
+                print(f"{timestamp()} LIVE {author_name}. Recording: {clean_title} [part{part_counter:02d}]")
 
-            print(f"{current_time} LIVE {author_name}. Recording: {clean_title}")
+                with open(log_filename, "a", encoding='utf-8') as log_file:
+                    log_file.write(f"{timestamp()} Starting recording for {author_name} ({clean_title}) part{part_counter:02d}\n")
 
-            with open(log_filename, "a", encoding='utf-8') as log_file:
-                log_file.write(f"{current_time} Starting recording for {author_name} ({clean_title})\n")
+                    cmd = [
+                        "streamlink", "--twitch-low-latency", "--twitch-disable-ads", "--stream-segment-threads", "3", "--hls-live-restart", "--stream-segment-timeout", "15", "--stream-segment-attempts", "10", "-o", filename_format,
+                        uri, quality
+                    ]
+                    if proxy:
+                        cmd.insert(1, f"--http-proxy={proxy}")
+                    if twitch_proxy_playlist:
+                        cmd.insert(1, f"--twitch-proxy-playlist={twitch_proxy_playlist}")
 
-                proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file)
-                output_file = None
-                start_check = time.time()
+                    proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file)
+                    output_file = None
+                    start_check = time.time()
 
-                try:
-                    while True:
-                        ret = proc.poll()
+                    try:
+                        while True:
+                            ret = proc.poll()
 
-                        # Detect the current output file (first one matching pattern)
-                        if output_file is None:
-                            for f in Path(".").glob(f"*[{author_name}]*[{quality}]*.ts"):
-                                output_file = str(f)
+                            if output_file is None:
+                                for f in Path(".").glob(f"*[{author_name}]*[{quality}]*part{part_counter:02d}.ts"):
+                                    output_file = str(f)
+                                    break
+
+                            if output_file and (time.time() - start_check >= CHECK_INTERVAL):
+                                start_check = time.time()
+                                duration = get_file_duration(output_file)
+                                if duration > SPLIT_SECONDS:
+                                    log_file.write(f"{timestamp()} Duration {duration:.0f}s > {SPLIT_SECONDS}. Restarting recording for {author_name}\n")
+                                    print(f"{timestamp()} Split: {author_name} file exceeded {SPLIT_SECONDS} seconds, restarting...")
+                                    try:
+                                        proc.terminate()
+                                        try:
+                                            proc.wait(timeout=5)
+                                        except subprocess.TimeoutExpired:
+                                            proc.kill()
+                                            proc.wait()
+                                    except Exception as e:
+                                        log_error(f"{author_name} — Error terminating process: {e}")
+                                    part_counter += 1
+                                    break
+
+                            if ret is not None:
+                                log_file.write(f"{timestamp()} Recording process exited with code {ret}\n")
                                 break
 
-                        # Every CHECK_INTERVAL, run ffprobe on the file
-                        if output_file and (time.time() - start_check >= CHECK_INTERVAL):
-                            start_check = time.time()
-                            duration = get_file_duration(output_file)
-                            if duration > SPLIT_SECONDS:
-                                log_file.write(f"{timestamp()} Duration {duration:.0f}s > {SPLIT_SECONDS}. Restarting recording for {author_name}\n")
-                                print(f"{timestamp()} Split: {author_name} file exceeded {SPLIT_SECONDS} seconds, restarting...")
-                                try:
-                                    proc.terminate()
-                                    try:
-                                        proc.wait(timeout=5)
-                                    except subprocess.TimeoutExpired:
-                                        proc.kill()
-                                        proc.wait()
-                                except Exception as e:
-                                    log_error(f"{author_name} — Error terminating process: {e}")
-                                break  # outer loop restarts with new file
+                            time.sleep(5)
 
-                        if ret is not None:
-                            log_file.write(f"{timestamp()} Recording process exited with code {ret}\n")
-                            break
+                    except KeyboardInterrupt:
+                        try:
+                            proc.terminate()
+                        except Exception:
+                            pass
+                        print(f"{timestamp()} Stopped by User {author_name}.")
+                        return
 
-                        time.sleep(5)
-
-                except KeyboardInterrupt:
-                    try:
-                        proc.terminate()
-                    except Exception:
-                        pass
-                    print(f"{timestamp()} Stopped by User {author_name}.")
-                    return
-
-                log_file.write(f"{timestamp()} Finished recording or restarted for {author_name}\n\n")
+                    log_file.write(f"{timestamp()} Finished recording or restarted for {author_name}\n\n")
 
         except json.JSONDecodeError as e:
             log_error(f"{author_name} — ERROR parsing stream info: {str(e)}")
