@@ -12,12 +12,17 @@ from pathlib import Path
 MIN_WAIT = 2
 MAX_WAIT = 11
 
+# Split duration: 11 hours 38 minutes (41880 seconds)
+SPLIT_SECONDS = 11 * 3600 + 38 * 60
+CHECK_INTERVAL = 2000  # seconds between ffprobe checks
+
 INVALID_CHARS = r'<>:"/\\|?*'
 RESERVED_NAMES = {
     "CON", "PRN", "AUX", "NUL",
     *(f"COM{i}" for i in range(1, 10)),
     *(f"LPT{i}" for i in range(1, 10)),
 }
+
 
 def sanitize_filename_windows(name: str, replacement="_") -> str:
     if not name:
@@ -38,12 +43,15 @@ def sanitize_filename_windows(name: str, replacement="_") -> str:
         name = f"_{name}"
     return name or "stream_title"
 
+
 def timestamp():
     return strftime("[%Y-%m-%d %H:%M:%S]", gmtime())
+
 
 def log_error(message: str):
     with open("errors.log", "a", encoding='utf-8') as err_log:
         err_log.write(f"{timestamp()} {message}\n")
+
 
 def is_stream_live(author_name, quality="best", proxy=None, twitch_proxy_playlist=None):
     cmd = [
@@ -61,6 +69,20 @@ def is_stream_live(author_name, quality="best", proxy=None, twitch_proxy_playlis
         return result.returncode == 0
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
         return False
+
+
+def get_file_duration(filepath):
+    try:
+        cmd = [
+            "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", filepath
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode == 0 and result.stdout.strip():
+            return float(result.stdout.strip())
+    except Exception as e:
+        log_error(f"ffprobe error on {filepath}: {e}")
+    return 0.0
+
 
 def download(author_name, quality="best", proxy=None, twitch_proxy_playlist=None):
     uri = f"https://www.twitch.tv/{author_name}"
@@ -95,7 +117,7 @@ def download(author_name, quality="best", proxy=None, twitch_proxy_playlist=None
             filename_format = r"{time:%Y%m%d %H-%M-%S} [" + author_name + r"] " + clean_title + r" [" + quality + r"][{id}].ts"
 
             cmd = [
-                "streamlink", "--twitch-low-latency", "--twitch-disable-ads", "--twitch-low-latency", "--twitch-disable-ads", "--stream-segment-threads", "3", "--hls-live-restart", "--stream-segment-timeout", "15", "--stream-segment-attempts", "10", "-o", filename_format,
+                "streamlink", "--twitch-low-latency", "--twitch-disable-ads", "--stream-segment-threads", "3", "--hls-live-restart", "--stream-segment-timeout", "15", "--stream-segment-attempts", "10", "-o", filename_format,
                 uri, quality
             ]
             if proxy:
@@ -107,8 +129,54 @@ def download(author_name, quality="best", proxy=None, twitch_proxy_playlist=None
 
             with open(log_filename, "a", encoding='utf-8') as log_file:
                 log_file.write(f"{current_time} Starting recording for {author_name} ({clean_title})\n")
-                subprocess.run(cmd, stdout=log_file, stderr=log_file, check=True)
-                log_file.write(f"{timestamp()} Finished recording\n\n")
+
+                proc = subprocess.Popen(cmd, stdout=log_file, stderr=log_file)
+                output_file = None
+                start_check = time.time()
+
+                try:
+                    while True:
+                        ret = proc.poll()
+
+                        # Detect the current output file (first one matching pattern)
+                        if output_file is None:
+                            for f in Path(".").glob(f"*[{author_name}]*[{quality}]*.ts"):
+                                output_file = str(f)
+                                break
+
+                        # Every CHECK_INTERVAL, run ffprobe on the file
+                        if output_file and (time.time() - start_check >= CHECK_INTERVAL):
+                            start_check = time.time()
+                            duration = get_file_duration(output_file)
+                            if duration > SPLIT_SECONDS:
+                                log_file.write(f"{timestamp()} Duration {duration:.0f}s > {SPLIT_SECONDS}. Restarting recording for {author_name}\n")
+                                print(f"{timestamp()} Split: {author_name} file exceeded {SPLIT_SECONDS} seconds, restarting...")
+                                try:
+                                    proc.terminate()
+                                    try:
+                                        proc.wait(timeout=5)
+                                    except subprocess.TimeoutExpired:
+                                        proc.kill()
+                                        proc.wait()
+                                except Exception as e:
+                                    log_error(f"{author_name} — Error terminating process: {e}")
+                                break  # outer loop restarts with new file
+
+                        if ret is not None:
+                            log_file.write(f"{timestamp()} Recording process exited with code {ret}\n")
+                            break
+
+                        time.sleep(5)
+
+                except KeyboardInterrupt:
+                    try:
+                        proc.terminate()
+                    except Exception:
+                        pass
+                    print(f"{timestamp()} Stopped by User {author_name}.")
+                    return
+
+                log_file.write(f"{timestamp()} Finished recording or restarted for {author_name}\n\n")
 
         except json.JSONDecodeError as e:
             log_error(f"{author_name} — ERROR parsing stream info: {str(e)}")
@@ -126,6 +194,7 @@ def download(author_name, quality="best", proxy=None, twitch_proxy_playlist=None
         except KeyboardInterrupt:
             print(f"{timestamp()} Stopped by User {author_name}.")
             return
+
 
 def main():
     if len(sys.argv) < 2:
@@ -166,6 +235,7 @@ def main():
         print("\nStop all processes...")
         for p in processes:
             p.terminate()
+
 
 if __name__ == '__main__':
     main()
